@@ -3,6 +3,7 @@ extern crate dirs;
 
 use std::fs::File;
 use std::fs;
+use std::process::Command;
 use egui::util::cache::CacheTrait;
 use native_dialog::FileDialog;
 use std::io::BufReader;
@@ -48,16 +49,24 @@ impl rustic {
     }
     fn play(&mut self){
         if self.queue.len() != 0 {
-            let audio_file = File::open(&self.queue[self.queue.len()-1].path).unwrap();
+            let audio_file ;
+            if self.queue[0].path.starts_with("https://"){
+                Command::new("yt-dlp").arg("-o").arg(file_managment::get_music_dir()).arg(self.queue[0].path);
+                audio_file = File::open(&self.queue[self.queue.len()-1].path).unwrap();
+            }else {
+                audio_file= File::open(&self.queue[self.queue.len()-1].path).unwrap()
+            }
             if  !self.repeat {
                 self.queue.pop();
             }
+            println!("heya");
             let source = rodio::Decoder::new(BufReader::new(audio_file)).unwrap();
             print!("hey");
             // Jouer le fichier audio
             self.player.sink.append(source);
-
-        }
+            
+            
+    
     }
 
     async fn get_song_name(link: String) -> Result<String, reqwest::Error> {
@@ -67,13 +76,11 @@ impl rustic {
     fn link_queue<'s>(&'s mut self, link: String) {
         if link.starts_with("https://"){
             let (tx, mut rx) = mpsc::channel(32); // Adjust the buffer size as needed
-        
             let link_clone = link.clone();
             let rt = Runtime::new().unwrap();
             let enter = rt.enter();
             tokio::spawn(async move {
                 let result = Self::get_song_name(link_clone).await;
-        
                 match result {
                     Ok(name) => {
                         let new_song = Song {
@@ -135,9 +142,9 @@ impl Default for rustic {
 
 impl eframe::App for rustic {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        if self.queue.len() != 0 && self.queue.len() > self.player.sink.len(){
-            self.queue.remove(0);
-        } 
+        //if self.queue.len() != 0 && self.queue.len() > self.player.sink.len(){
+        //    self.queue.remove(0);
+        //} 
         
         egui::SidePanel::right("song list").show(ctx, |ui| {
             ui.heading("Library");
